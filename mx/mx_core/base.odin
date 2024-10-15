@@ -61,7 +61,7 @@ RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_
 			state.is_initialised = ok;
 			state.move_timer = timer { 0.0, 0.05 };
 
-			CreateLogFile(state);
+			//CreateLogFile(state);
 		} else {
 			state.signal.should_close = true;
 			return; 
