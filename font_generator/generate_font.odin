@@ -53,14 +53,14 @@ main :: proc() {
 		return; 
 	}
 
-	fmt.println("Text font: ", text_fontinfo);
+	when ODIN_DEBUG do fmt.println("Text font: ", text_fontinfo);
 
 	if result := InitFont(&icon_fontinfo, raw_data(icons), 0); result == false {
 		fmt.println("Failed to initialize icons font.");
 		return;
 	}
 
-	fmt.println("Icon font: ", icon_fontinfo);
+	when ODIN_DEBUG do  fmt.println("Icon font: ", icon_fontinfo);
 
 	img_width : i32 = 1024 // 512;
 	img_height : i32 = 512 // 256;
@@ -77,7 +77,7 @@ main :: proc() {
 	scale := SCALE;
 	STRIDE_IN_BYTES :: 4
 
-	fmt.println(ascent, descent, line_gap);
+	when ODIN_DEBUG do fmt.println(ascent, descent, line_gap);
 	// Image buffer.
 	pixels := make([]u8, img_width * img_height, context.temp_allocator);
 
@@ -89,7 +89,7 @@ main :: proc() {
 	PackSetSkipMissingCodepoints(&pack_ctx, true);
 //	PackSetOversampling(&pack_ctx, 2, 2);
 
-	fmt.println(pack_ctx);
+	when ODIN_DEBUG do fmt.println(pack_ctx);
 
 	first_ascii : i32 = 33;
 	last_ascii : i32 = 126; 
@@ -150,7 +150,7 @@ main :: proc() {
 	header.max_height = scale;
 	header.glyph_count = cast(u32) (last_ascii - first_ascii + cast(i32) len(icon_characters));
 
-	fmt.println("HEADER: ", header);
+	//fmt.println("HEADER: ", header);
 
 	os.write(fd, mem.byte_slice(&header, size_of(header)));
 	os.write(fd, mem.slice_to_bytes(glyphs[:]));
