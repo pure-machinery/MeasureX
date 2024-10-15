@@ -117,6 +117,7 @@ ui_context :: struct
 	focused: ui_id,
 
 	last_hot: ui_id,
+	last_focused: ui_id,
 
 	delta_time: f32,
 	hover_time: f32, 
@@ -156,6 +157,17 @@ ui_context :: struct
 
 	text_input_stall_timer: f32,
 	text_input_stall_threshold: f32,
+
+	key_skip_next_char_duration: f32,
+	key_skip_next_char: bool,
+
+	key_skip_prev_char_duration: f32,
+	key_skip_prev_char: bool,
+
+	key_delete_prev_char_duration: f32,
+	key_delete_prev_char: bool,
+
+
 }
 
 ui_widget_response :: struct {
@@ -238,8 +250,9 @@ ui_widget :: struct #align(32) {
 	clipping_rect: ui_rect,
 	
 	computed_size: [2]f32,
-	at:            [2]f32, 
+	at:            [2]f32,
 
+	offset:        [2]f32,
 	// Persists across frames. 
 	hover_time: f32,
 	press_time: f32, 
@@ -428,8 +441,14 @@ UiDrawWidget :: proc(widget: ^ui_widget) {
 
 		if response.hovered do color = style.text_color_hover;
 
-		x, y := UiRectGetCenter(widget.rect);
-		mx_renderer.PushString(UI.ctx, x, y, color, widget.text, .MIDDLE, style.text_size_default);
+		//x, y := UiRectGetCenter(widget.rect);
+		attribs := mx_renderer.string_attributes {
+			text = widget.text,
+			justify = .MIDDLE,
+			font_size = style.text_size_default, 
+		}
+
+		mx_renderer.PushString(UI.ctx, widget.rect, color, attribs);
 	}
 
 }

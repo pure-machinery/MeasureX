@@ -175,8 +175,8 @@ main :: proc() {
 	state := mx_core.state_data {};
 	input := mx_input.input_state {};
 
-	image_data := #load("asset.png");
-	glyph_data := #load("asset");
+	image_data := #load("assets/asset.png");
+	glyph_data := #load("assets/asset");
 
 	if font_image, font_map, max_height, success := mx_parser.ParseTTF(image_data, glyph_data); success {
 		renderer.font_image = font_image;
@@ -334,7 +334,7 @@ main :: proc() {
 		state.frame += 1;	
 
 		if diff := abs(desired_dt - frame_time); diff > 0 {
-			time.accurate_sleep(diff);
+			//time.accurate_sleep(diff);
 		}
 	}
 }

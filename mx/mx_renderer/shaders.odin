@@ -12,8 +12,9 @@ layout (location = 2) in vec2 min_uv;
 layout (location = 3) in vec2 max_uv;
 layout (location = 4) in vec4 color;
 layout (location = 5) in vec4 border_color;
-layout (location = 6) in float thickness;
-layout (location = 7) in int clipid;
+layout (location = 6) in vec4 radius;
+layout (location = 7) in float thickness;
+layout (location = 8) in int clipid;
 
 out vec4 out_color;
 out vec2 out_uv;

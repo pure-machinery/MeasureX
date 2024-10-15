@@ -9,6 +9,7 @@ vertex :: struct #packed
 	max_uv: [2]f32,
 	color: [4]f32,
 	border_color: [4]f32,
+	radius: [4]f32,
 	thickness: f32,
 	clip_id: int,
 }

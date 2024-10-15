@@ -174,7 +174,7 @@ UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain:
 		
 		fmt.println(file);
 
-		ExportToPDF(file, chain);
+		//ExportToPDF(file, chain);
 		// Do the exporting.
 	}
 
@@ -349,6 +349,7 @@ CreateLogFile :: proc(state: ^state_data) {
 ExportToPDF :: proc(filename: string, chain: ^mx_chain.dimension_chain) -> bool {
 	using strings;
 	using mx_parser;
+
 
 	fd, err := os.open(filename, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, os.S_IRWXU);
 	defer os.close(fd);
