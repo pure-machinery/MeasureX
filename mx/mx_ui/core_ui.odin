@@ -156,11 +156,8 @@ ui_context :: struct
 	text_input_stall_timer: f32,
 	text_input_stall_threshold: f32,
 
-	key_skip_next_char_duration: f32,
-	key_skip_next_char: bool,
-
-	key_skip_prev_char_duration: f32,
-	key_skip_prev_char: bool,
+	key_skip_char_duration: f32,
+	key_skip_char: bool,
 
 	key_delete_prev_char_duration: f32,
 	key_delete_prev_char: bool,
@@ -180,7 +177,6 @@ ui_widget_response :: struct {
 	dragged: bool,
 	scroll: f32,
 	focused: bool,
-	
 	active: bool,
 }
 
@@ -281,7 +277,6 @@ ui_rect :: mx_renderer.rectangle;
 
 
 UiGenerateID :: proc(text: string, location := #caller_location) -> ui_id {
-	//return cast(int) hash.murmur64a(transmute([]u8) text);
 	return cast(int) hash.fnv64a(transmute([]u8) text);
 }
 
@@ -321,10 +316,15 @@ UiGetWidgetResponse :: proc(widget: ^ui_widget, location := #caller_location) ->
 
 	if result.hovered && widget.unique_id == UI.active && UI.left_press == false {
 		result.single_clicked = true;
+		result.focused = true;
 		
-		fmt.println("Focused: ", widget.unique_id, widget.text);
-		UI.focused = UI.active;
+		UI.focused = widget.unique_id;
 	}
+
+	if UI.focused == widget.unique_id {
+		result.focused = true;
+	}
+
 
 	if !result.hovered {
 		widget.time_since_last_interaction += UI.delta_time;
@@ -400,7 +400,7 @@ UiMakeWidget :: proc(parent: ^ui_widget, flags: ui_widget_flags, size_x, size_y:
 	return result;
 }
 
-UiDrawWidget :: proc(widget: ^ui_widget) {
+UiDrawWidget :: proc(widget: ^ui_widget, location := #caller_location) {
 	if widget.flags == {} do return; 
 
 	response := ui_widget_response {};
@@ -411,7 +411,7 @@ UiDrawWidget :: proc(widget: ^ui_widget) {
 	style := UI.styles[widget.style];
 
 	if widget.flags & { .DRAW_INTERACTIVE } != {} { 
-		response = UiGetWidgetResponse(widget);
+		response = UiGetWidgetResponse(widget, location);
 		// TEMP:
 		color = { 0.125, 0.125, 0.125, 1.0 };
 		border_color := [4]f32 { 0.5, 1.0, 0.0, 1.0 };
@@ -433,12 +433,12 @@ UiDrawWidget :: proc(widget: ^ui_widget) {
 	
 	when ODIN_DEBUG do mx_renderer.PushRectangleBorder(UI.ctx, widget.rect, { 1.0, 0.0, 0.0, 1.0 }, 1.0);
 
-	// This needs to go after the background drawing!
+	// This needs to go after the rectangle drawing (PushRectangle)!
 	if widget.flags & { .DRAW_TEXT } != {} {
 		color := style.text_color_default;
 
 		if response.hovered do color = style.text_color_hover;
-
+		if response.focused do color = { 0.125, 0.5, 0.125, 1.0 };
 		//x, y := UiRectGetCenter(widget.rect);
 		attribs := mx_renderer.string_attributes {
 			text = widget.text,
@@ -569,13 +569,12 @@ UiBegin :: proc(mouse_x, mouse_y : f64, scroll: f32,  screen_width: i32, screen_
 	UI.parent = &UI.widgets[UI.internal_count];
 	UI.screen = UI.parent;
 	UI.internal_count += 1;
+
 	/*
 	if mx_input.KeyJustReleased(UI.input, .KEY_TAB) && UI.internal_count > 0 {
-		// If no focused search for first active widget.
-		// previous <- current -> next ...
-		
 		if UI.focused == -1 {
-			// Move this to top level UI context ?? 
+			UI.focused = UI.screen.unique_id;
+		} else {
 			stack := make_dynamic_array_len_cap([dynamic]^ui_widget, 0, cap(UI.widgets), context.temp_allocator);
 			defer delete(stack);
 
@@ -583,7 +582,7 @@ UiBegin :: proc(mouse_x, mouse_y : f64, scroll: f32,  screen_width: i32, screen_
 			for node, ok := pop_safe(&stack); node != nil && ok; node, ok = pop_safe(&stack) {
 				fmt.println(node.text);
 				if node.flags & { .DRAW_INTERACTIVE } != {} {
-					//UI.focused = node.unique_id;
+					UI.focused = node.unique_id
 					fmt.println("Focused", UI.focused, node.text);
 					//break; 
 				}
@@ -608,7 +607,7 @@ UiEnd :: proc()
 	UI.last_mouse_x = UI.mouse_x;
 	UI.last_mouse_y = UI.mouse_y;
 
-
+	UI.last_focused = UI.focused;
 	// Will reallocate only if current capacity can't handle the length.
 	resize(&UI.last_widgets, len(UI.widgets));
 	copy_slice(UI.last_widgets[:], UI.widgets[:]); 
@@ -621,8 +620,8 @@ UiEnd :: proc()
 @(private="file")
 UiContainsMousePosition :: proc(rect: ui_rect) -> bool 
 {	
-	inside_x := (rect.min_x < UI.mouse_x && rect.max_x > UI.mouse_x);
-	inside_y := (rect.min_y < UI.mouse_y && rect.max_y > UI.mouse_y);
+	inside_x := (rect.min_x <= UI.mouse_x && rect.max_x > UI.mouse_x);
+	inside_y := (rect.min_y <= UI.mouse_y && rect.max_y > UI.mouse_y);
 
 	return inside_x && inside_y;
 }

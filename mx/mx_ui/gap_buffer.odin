@@ -56,6 +56,7 @@ IsCursorRight :: #force_inline proc(buffer: ^gap_buffer, cursor: int) -> bool {
 
 // TODO(G): See how to make this work correclty. Left side can be easly done but right not really? 
 GapMove :: proc(buffer: ^gap_buffer, cursor: int) {
+	if buffer.gap_size == 0 { return; }
 	// No characters left don't swap anything. 
 	gap_end := buffer.gap_start + buffer.gap_size;
 
@@ -82,7 +83,7 @@ RemoveCharacter :: proc(buffer: ^gap_buffer) {
 }
 
 
-MakeTempString :: proc(buffer: ^gap_buffer, allocator := context.temp_allocator) -> string {
+ExtractString :: proc(buffer: ^gap_buffer, allocator := context.temp_allocator) -> string {
 	if buffer.gap_size == 0 || len(buffer.base) == buffer.gap_size + buffer.gap_start {
 		return strings.string_from_ptr(&buffer.base[0], len(buffer.base));
 	} else {
@@ -102,13 +103,8 @@ ResetGapBuffer :: proc(buffer: ^gap_buffer) {
 }
 
 
-InsertString :: proc(buffer: ^gap_buffer, s: string) -> int {
-	copied := 0;
+AppendString :: proc(buffer: ^gap_buffer, s: string) {
 	for c in s {
-		if InsertCharacter(buffer, cast(u8) c) {
-			copied += 1;
-		}
+		InsertCharacter(buffer, cast(u8) c);
 	}
-
-	return copied;
 }

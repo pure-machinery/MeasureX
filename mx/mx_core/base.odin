@@ -45,17 +45,29 @@ timer :: struct {
 	seconds: f64, 
 }
 
+
+TestChain :: proc(chain: ^mx_chain.dimension_chain) {
+
+	for i in 0..<10 {
+		nominal := 100.0 * rand.norm_float64();
+		node := mx_chain.ChainInsertNode(chain, nil);
+		node.nominal_value = nominal;
+	}
+}
+
+
 RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_context, state: ^state_data) {
 	if !state.is_initialised {
 		mx_ui.UiInitialize(ctx, input);
 
 		if temp_chain, ok := mx_chain.InitializeChain(); ok {
 			state.chain = temp_chain;
-			state.selected_node = mx_chain.ChainInsertNode(&state.chain, nil);
+			//state.selected_node = mx_chain.ChainInsertNode(&state.chain, nil);
 			state.is_initialised = ok;
 			state.move_timer = timer { 0.0, 0.05 };
 
-			//CreateLogFile(state);
+			TestChain(&state.chain)
+
 		} else {
 			state.signal.should_close = true;
 			return; 
@@ -156,6 +168,10 @@ UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain:
 
 	mx_ui.UiSeparator(title_bar, 2.0);
 
+	radio_button := mx_ui.UiRadioButton(title_bar, "ISO2862:", { "F", "M", "C", "V" }, cast(^int) &chain.designation);
+
+	expander := mx_ui.UiLayout(title_bar, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE }, { 0.0, 1.0 }, {});
+
 	export := mx_ui.UiButton(title_bar, fmt.tprintf("%c##export_pdf", rune(mx_renderer.ICON_FILE_PDF)));
 	
 	if response := mx_ui.UiGetWidgetResponse(export); response.single_clicked {
@@ -169,41 +185,7 @@ UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain:
 		fmt.println(file);
 
 		//ExportToPDF(file, chain);
-		// Do the exporting.
 	}
-
-	mx_ui.UiSeparator(title_bar, 2.0);
-
-	radio_button := mx_ui.UiRadioButton(title_bar, "ISO2862:", { "F", "M", "C", "V" }, cast(^int) &chain.designation);
-
-	expander := mx_ui.UiLayout(title_bar, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE }, { 0.0, 1.0 }, {});
-
-	//UiLabel(title_bar, fmt.tprintf("%.6f %.6f ", dt, desired_dt));
-	
-	mx_ui.UiSeparator(title_bar, 2.0);
-
-	fullscreen := mx_ui.UiButton(title_bar, fmt.tprintf("%c##fullscreen", rune(mx_renderer.ICON_FULLSCREEN)));
-	
-	mx_ui.UiSeparator(title_bar, 2.0);
-
-	close_button := mx_ui.UiButton(title_bar, fmt.tprintf("%c##close", rune(mx_renderer.ICON_CLOSE)));
-
-	mx_ui.UiSeparator(title_bar, 2.0);
-
-	if response := mx_ui.UiGetWidgetResponse(close_button); response.single_clicked {
-		signal.should_close = true; 
-	}
-
-	if response := mx_ui.UiGetWidgetResponse(fullscreen); response.single_clicked {
-		signal.should_fullscreen = !signal.should_fullscreen;
-	}
-	/*
-
-	if response := UiGetWidgetResponse(save); true {
-		// TODO(G): Save as a binary file.
-	}
-	
-	*/
 }
 
 UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.dimension_node, elapsed: f64) 
@@ -219,8 +201,6 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 	mx_ui.UiLabelScaled(panel, list_scale, "Lower");
 	mx_ui.UiLabelScaled(panel, list_scale, "Upper");
 	
-	//UiSeparator(UI.screen, 8.0);
-	
 	{ 
 		// Clipping list.
 		//scroller_layout := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_EXPAND }, { 1.0, 1.0 }, .X_AXIS);
@@ -233,19 +213,12 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 			spanner := mx_ui.UiLayout(list, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 30.0 } , .X_AXIS);
 
 			state_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.state);
-			nominal_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%f##nominal_%x", node.nominal_value, node));
+			nominal_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.4f##nominal_%x", node.nominal_value, node));
 			field_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.field);
 			grade_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.grade);
-			
-			if node.state == .ISO286 {
-				//field_slider := UiSliderEnumScaled(spanner, list_scale, &node.field);
-				//grade_slider := UiSliderEnumScaled(spanner, list_scale, &node.grade);
-			} else {
-				mx_ui.UiLayout(spanner, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE}, { 1.0, 1.0 }, {});
-			}
-
-			lower_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##lower_%x", node.lower_tolerance, node));
-			upper_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##upper_%x", node.upper_tolerance, node));
+		
+			lower_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.4f##lower_%x", node.lower_tolerance, node));
+			upper_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.4f##upper_%x", node.upper_tolerance, node));
 
 
 			node.nominal_value, _ = strconv.parse_f64(nominal_input.text);
@@ -268,12 +241,7 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 						//style.text_color_default = [4]f32 { red, 0.0, 0.0, 1.0 };
 					}
 			}
-
-			mx_ui.UiSeparator(list, 5.0);
 		}
-	
-		mx_ui.UiSeparator(mx_ui.UI.screen, 6.0);
-
 	}
 	
 

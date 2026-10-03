@@ -29,19 +29,6 @@ XA_ATOM :: xlib.Atom(4)
 XA_CARDINAL :: xlib.Atom(6)
 
 
-
-window :: struct {
-	display: ^xlib.Display,
-
-	screen_width:  i32,
-	screen_height: i32,
-
-	window_width:  i32,
-	window_height: i32,
-
-	default_screen: i32,
-}
-
 main :: proc() {
 	mem.scratch_allocator_init(&scratch, 8 * mem.Megabyte, context.allocator);
 	context.temp_allocator = mem.scratch_allocator(&scratch);
@@ -125,7 +112,8 @@ main :: proc() {
 		.KeyRelease,
 		.PointerMotion,
 		.StructureNotify, 
-		.SubstructureNotify };
+		.SubstructureNotify,
+		.PropertyChange, };
 
 	window := xlib.CreateWindow(
 		display, 
@@ -534,10 +522,10 @@ SetWindowFrameExtents :: proc(display: ^xlib.Display, window: xlib.Window, size:
 }
 
 MakeBorderless :: proc(display: ^xlib.Display, window: xlib.Window) {
-	MwmHints :: struct {
+	MotifWMHints :: struct {
 	    flags: mwm_flags,
 	    functions : mwm_functions,
-	    decorations: mwm_decorations,
+	    decorations: u64,
 	    input_mode: mwm_input_mode,
 	    status: mwm_status,
 	};
@@ -581,11 +569,11 @@ MakeBorderless :: proc(display: ^xlib.Display, window: xlib.Window) {
 	};
 
 	mwmHintsProperty := xlib.InternAtom(display, "_MOTIF_WM_HINTS", true);
-	window_hints := MwmHints {};
-	window_hints.flags = .DECORATIONS | .FUNCTIONS;
-	window_hints.decorations = .RESIZEH | .BORDER;
-	window_hints.functions = .ALL;
-	//window_hints.decorations = .BORDER;
+	window_hints := MotifWMHints {
+		flags = .DECORATIONS | .FUNCTIONS,
+		decorations = 0,
+		functions = .ALL,
+	};
 
 	fmt.println(window_hints, size_of(window_hints));
 

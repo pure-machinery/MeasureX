@@ -102,97 +102,64 @@ UiTextEdit :: proc(parent: ^ui_widget, text: string) -> ui_widget_response {
 UiTextEditScaled :: proc(parent: ^ui_widget, scale: f32, text: string) -> ^ui_widget {
 	widget := UiMakeWidget(
 		parent,
-		{ .DRAW_BACKGROUND, .DRAW_INTERACTIVE, .DRAW_FOCUSED, .DRAW_TEXT, .DRAW_BORDER }, 
-		ui_widget_size_config {	.SIZE_BY_TEXT, 1.0 },
+		{ .DRAW_BACKGROUND, .DRAW_INTERACTIVE, .DRAW_FOCUSED, .DRAW_TEXT }, 
+		ui_widget_size_config {	.SIZE_BY_SCALE, scale },
 		ui_widget_size_config { .SIZE_BY_SCALE, 1.0 },
 		.X_AXIS,
 		text);
 
 	response := UiGetWidgetResponse(widget);
-
-	if response.single_clicked || (response.focused && UI.focused != UI.last_focused) {
+	
+	if response.single_clicked {
 		ResetGapBuffer(&UI.input_buffer);
-		InsertString(&UI.input_buffer, widget.text);
-		fmt.println ("Editing: ", UI.input_buffer)
+		AppendString(&UI.input_buffer, widget.text);
+		//fmt.println ("Gap buffer reset on: ", widget.text, string(UI.input_buffer.base[:]))
 	}
 
+	// This is the editing mode of the text!
+	// UI.focused could be a pointer though.
 	if response.focused {
-		fmt.println ("Editing: ", widget.unique_id)
-		// TODO(G): Add a timer for the cursor blinking? 
-		style := default_style;
-		//alpha := abs(math.sin(2.0 * UI.text_input_stall_timer));
-		style.background_color = { 1.0, 0.0, 0.0, 1.0 } ;
-		UiSetStyle(style);
-
-		// One option is to create a global cursor and then jump it around!
-		cursor_width : f32 = 1.5;
-		cursor := UiMakeWidget(widget, { .DRAW_BACKGROUND }, { .SIZE_BY_PIXELS, cursor_width }, { .SIZE_BY_SCALE, 1.0 }, {}, "cursor##cursor");
-		
-		widget.text = MakeTempString(&UI.input_buffer);
-		// NOTE(G): Can't create this from a rect because there is not rect until next (future) frame.  
-
-		prev_x := cursor.rect.min_x;
-		prev_y := cursor.rect.min_y; 
-
-		
-		next_x := widget.rect.min_x + 0.5 * (widget.rect.max_x - widget.rect.min_x);
-		//next_x -= 0.5 * mx_renderer.GetTextWidth(UI.ctx, widget.text, style.text_size_default);
-		next_x += mx_renderer.GetTextWidth(UI.ctx, widget.text[:UI.input_buffer.gap_start], style.text_size_default);
-		next_y := widget.rect.min_y;
-
-		//diff_x := next_x - prev_x; 
-		//diff_y := next_y - prev_y;
-
-		cursor.offset.x = 0.0;
-		cursor.offset.y = 0.0; 
-
-		//value := AnimateValue(widget.time_since_last_interaction);
-		//fmt.println(value, widget.time_since_last_interaction);
-
-		//cursor.rect.min_x = next_x; //prev_x + diff_x * AnimateValue(widget.time_since_last_interaction); 
-		//cursor.rect.min_y = next_y; //prev_y + diff_y * AnimateValue(widget.time_since_last_interaction);
-
-		UiResetStyle();
-
-		threshold := UI.key_skip_next_char_duration == 0 || UI.key_skip_next_char_duration > UI.text_input_stall_threshold;
-		if UI.key_skip_next_char && threshold { 
-			GapMove(&UI.input_buffer, UI.input_buffer.gap_start + 1);
+		if last_widget := UiFindWidgetByHash(UI.last_focused, true); last_widget != nil {
+			//fmt.println ("Editing: ", widget.unique_id, widget.text, "last", last_widget.text)	
+	}
+		// Cursor moving.
+		if typed, elapsed := mx_input.KeysAreDownAny(UI.input, { .KEY_RIGHT }); typed != .KEY_UNKNOWN {
+			threshold := UI.key_skip_char_duration == 0 || UI.key_skip_char_duration > UI.text_input_stall_threshold;
+			if threshold { 
+				GapMove(&UI.input_buffer, UI.input_buffer.gap_start + 1);
+			}
 		}
 
-
-		threshold = UI.key_skip_prev_char_duration == 0 || UI.key_skip_prev_char_duration > UI.text_input_stall_threshold;
-		if UI.key_skip_prev_char && threshold { 
-			GapMove(&UI.input_buffer, UI.input_buffer.gap_start - 1);
+		if typed, elapsed := mx_input.KeysAreDownAny(UI.input, { .KEY_LEFT }); typed != .KEY_UNKNOWN {
+			threshold := UI.key_skip_char_duration == 0 || UI.key_skip_char_duration > UI.text_input_stall_threshold;
+			if threshold { 
+				GapMove(&UI.input_buffer, UI.input_buffer.gap_start - 1);
+			}
 		}
 
-		// Typing characters.
-		
+		// Typing & deleting characters.
 		keys := []mx_input.mx_key { .KEY_DASH, .KEY_PERIOD, .KEY_0, .KEY_1, .KEY_2, .KEY_3, .KEY_4, .KEY_5, .KEY_6, .KEY_7, .KEY_8, .KEY_9 }
 		if typed, elapsed := mx_input.KeysAreDownAny(UI.input, keys); typed != .KEY_UNKNOWN {
+
 			if elapsed == 0 || elapsed > UI.text_input_stall_threshold {
 				InsertCharacter(&UI.input_buffer, cast(u8) typed);
 			}
 		}
 		
-
-		threshold = UI.key_delete_prev_char_duration == 0 || UI.key_delete_prev_char_duration > UI.text_delete_threshold;
-		if UI.key_delete_prev_char && threshold {
-				RemoveCharacter(&UI.input_buffer);
+		delete_keys := []mx_input.mx_key { .KEY_BACKSPACE }
+		if typed, elapsed := mx_input.KeysAreDownAny(UI.input, delete_keys); typed != .KEY_UNKNOWN {
+			if elapsed == 0 || u32(elapsed / UI.text_delete_threshold) == 1 {
+					RemoveCharacter(&UI.input_buffer);
+			}
 		}
 
-		widget.text = MakeTempString(&UI.input_buffer);
+		widget.text = ExtractString(&UI.input_buffer);
 	}
 	
 
 	return widget;	
 }
 
-/*
-UI.input_state: rawptr;
-UI.key_is_released(input_state: rawptr, key: i32) -> bool;
-UI.key_is_pressed(input_state: rawptr, key: i32) -> bool, f32; 
-UI.keys_are_down(input_state: rawptr, keys: []i32, duration: []f32)
-*/
 
 
 UiSliderEnumScaled :: proc(parent: ^ui_widget, scale: f32, value: ^$T) -> ^ui_widget where intrinsics.type_is_enum(T) {
@@ -205,6 +172,8 @@ UiSliderEnumScaled :: proc(parent: ^ui_widget, scale: f32, value: ^$T) -> ^ui_wi
 	left_arrow  := UiButton(layout, fmt.tprintf("%c", rune(mx_renderer.ICON_LEFT)));
 	UiSeparator(layout, 4.0);
 	result 		:= UiLabel(layout, reflect.enum_string(value^));
+	result.size = { { .SIZE_BY_EXPAND, 1.0 } , { .SIZE_BY_SCALE, 1.0 } }  
+
 	UiSeparator(layout, 4.0);
 	right_arrow := UiButton(layout, fmt.tprintf("%c", rune(mx_renderer.ICON_RIGHT)));
 /*
@@ -319,7 +288,8 @@ UiRadioButton :: proc(parent: ^ui_widget, label: string, options: []any, active:
 	layout := UiLayout(parent, { .SIZE_BY_CHILDREN, .SIZE_BY_SCALE }, { 1.0, 1.0 }, .X_AXIS);
 
 	UiLabel(layout, label);
-	
+	UiSeparator(layout, 6.0);
+
 	for i, idx in options {
 		child := UiButton(layout, fmt.tprintf("%s", i));
 
