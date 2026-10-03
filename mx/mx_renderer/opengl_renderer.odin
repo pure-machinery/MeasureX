@@ -13,7 +13,6 @@ import "core:slice"
 import "core:unicode/utf8"
 
 import "../mx_parser"
-import "../../profiler"
 
 WHITE_PIXEL := [4]u8 { 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -258,7 +257,7 @@ InitShaderStorageBuffer :: proc(ctx: ^graphics_context, size: int) {
 }
 */
 
-PushRectangle :: proc(ctx: ^graphics_context, rect : rectangle, color, uv, border_color, radius: [4]f32) {
+PushRectangle :: proc(ctx: ^graphics_context, rect : rectangle, color, uv, border_color, radius: [4]f32, thickness: f32) {
 	group := &ctx.groups[cast(int) render_group_kind.RECTANGLE];
 
 	group.instance_count += 1;
@@ -270,6 +269,7 @@ PushRectangle :: proc(ctx: ^graphics_context, rect : rectangle, color, uv, borde
 				min_uv = uv.xy,
 				max_uv = uv.zw,
 				border_color = border_color,
+				thickness = thickness,
 				radius = radius,
 	};
 
@@ -291,7 +291,7 @@ PushRectangleBorder :: proc(ctx: ^graphics_context, rect: rectangle, color: [4]f
 		max_y = rect.max_y,
 	};
 
-	PushRectangle(ctx, left_border, color, {}, {}, {});
+	PushRectangle(ctx, left_border, color, {}, {}, {}, 0);
 
 	right_border := rectangle { 
 		min_x = rect.max_x - thickness, 
@@ -300,7 +300,7 @@ PushRectangleBorder :: proc(ctx: ^graphics_context, rect: rectangle, color: [4]f
 		max_y = rect.max_y,
 	};
 
-	PushRectangle(ctx, right_border, color, {}, {}, {});
+	PushRectangle(ctx, right_border, color, {}, {}, {}, 0);
 
 	top_border := rectangle { 
 		min_x = rect.min_x + thickness, 
@@ -309,7 +309,7 @@ PushRectangleBorder :: proc(ctx: ^graphics_context, rect: rectangle, color: [4]f
 		max_y = rect.min_y + thickness,
 	};
 
-	PushRectangle(ctx, top_border, color, {}, {}, {});
+	PushRectangle(ctx, top_border, color, {}, {}, {}, 0);
 
 	bottom_border := rectangle { 
 		min_x = rect.min_x + thickness, 
@@ -318,7 +318,7 @@ PushRectangleBorder :: proc(ctx: ^graphics_context, rect: rectangle, color: [4]f
 		max_y = rect.max_y,
 	};
 
-	PushRectangle(ctx, bottom_border, color, {}, {}, {});
+	PushRectangle(ctx, bottom_border, color, {}, {}, {}, 0);
 }
 
 GetCharacterWidth :: proc(ctx: ^graphics_context, ch: rune, font_size: f32) -> f32 {
@@ -330,8 +330,6 @@ GetCharacterWidth :: proc(ctx: ^graphics_context, ch: rune, font_size: f32) -> f
 }
 
 GetTextWidth :: proc(ctx: ^graphics_context, text: string, font_size: f32) -> f32 {
-	//profiler.BeginRecordEntry(#procedure);
-	//defer profiler.EndRecordEntry();
 
 	length : f32 = 0;
 
@@ -395,12 +393,16 @@ string_attributes :: struct {
 	font_size: f32, 
 }
 
-PushString :: proc(ctx: ^graphics_context, rect :rectangle, color: [4]f32 = { 1.0, 1.0, 1.0, 1.0 } , using attribs: string_attributes) 
+PushString :: proc(ctx: ^graphics_context, rect :rectangle, color: [4]f32 = { 1.0, 1.0, 1.0, 1.0 } , attribs: string_attributes) 
 {
 	x := (rect.max_x - rect.min_x) * 0.5 + rect.min_x;
 	y := (rect.max_y - rect.min_y) * 0.5 + rect.min_y;
 
 	group := &ctx.groups[cast(int) render_group_kind.RECTANGLE];
+
+	font_size := attribs.font_size;
+	text := attribs.text;
+	justify := attribs.justify;
 
 	scale := font_size / ctx.max_height;
 
@@ -460,7 +462,7 @@ PushString :: proc(ctx: ^graphics_context, rect :rectangle, color: [4]f32 = { 1.
 		// Get the UV's of the texture.
 		uv := [4]f32 { min_u, min_v, max_u, max_v };
 
-		PushRectangle(ctx, bounding_box, color, uv, {}, {});
+		PushRectangle(ctx, bounding_box, color, uv, {}, {}, 0.0);
 
 		previous_x += tglyph.x_advance * scale; 	
 	}
@@ -500,7 +502,7 @@ PushCharacter :: proc(ctx: ^graphics_context, x: f32, y: f32, color: [4]f32 = { 
 	// Get the UV's of the texture.
 	uv := [4]f32 { min_u, min_v, max_u, max_v };
 
-	PushRectangle(ctx, bounding_box, {}, color, uv, {});	
+	PushRectangle(ctx, bounding_box, {}, color, uv, {}, 0.0);	
 }
 
 // Can go to the renderer ?

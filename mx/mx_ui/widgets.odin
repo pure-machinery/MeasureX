@@ -100,8 +100,6 @@ UiTextEdit :: proc(parent: ^ui_widget, text: string) -> ui_widget_response {
 }
 
 UiTextEditScaled :: proc(parent: ^ui_widget, scale: f32, text: string) -> ^ui_widget {
-	using mx_input;
-
 	widget := UiMakeWidget(
 		parent,
 		{ .DRAW_BACKGROUND, .DRAW_INTERACTIVE, .DRAW_FOCUSED, .DRAW_TEXT, .DRAW_BORDER }, 
@@ -115,9 +113,11 @@ UiTextEditScaled :: proc(parent: ^ui_widget, scale: f32, text: string) -> ^ui_wi
 	if response.single_clicked || (response.focused && UI.focused != UI.last_focused) {
 		ResetGapBuffer(&UI.input_buffer);
 		InsertString(&UI.input_buffer, widget.text);
+		fmt.println ("Editing: ", UI.input_buffer)
 	}
 
 	if response.focused {
+		fmt.println ("Editing: ", widget.unique_id)
 		// TODO(G): Add a timer for the cursor blinking? 
 		style := default_style;
 		//alpha := abs(math.sin(2.0 * UI.text_input_stall_timer));
@@ -166,14 +166,14 @@ UiTextEditScaled :: proc(parent: ^ui_widget, scale: f32, text: string) -> ^ui_wi
 		}
 
 		// Typing characters.
-		/*
-		keys := []virtual_key { .KEY_DASH, .KEY_PERIOD, .KEY_0, .KEY_1, .KEY_2, .KEY_3, .KEY_4, .KEY_5, .KEY_6, .KEY_7, .KEY_8, .KEY_9 }
-		if typed, elapsed := KeysAreDownAny(UI.input, keys); typed != .KEY_UNKNOWN {
+		
+		keys := []mx_input.mx_key { .KEY_DASH, .KEY_PERIOD, .KEY_0, .KEY_1, .KEY_2, .KEY_3, .KEY_4, .KEY_5, .KEY_6, .KEY_7, .KEY_8, .KEY_9 }
+		if typed, elapsed := mx_input.KeysAreDownAny(UI.input, keys); typed != .KEY_UNKNOWN {
 			if elapsed == 0 || elapsed > UI.text_input_stall_threshold {
 				InsertCharacter(&UI.input_buffer, cast(u8) typed);
 			}
 		}
-		*/
+		
 
 		threshold = UI.key_delete_prev_char_duration == 0 || UI.key_delete_prev_char_duration > UI.text_delete_threshold;
 		if UI.key_delete_prev_char && threshold {

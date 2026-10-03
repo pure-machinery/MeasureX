@@ -72,7 +72,7 @@ LoadFileData :: proc(filename: string, read_only: bool = true) -> ([]u8, bool)
 		usage = os.O_RDWR;
 	}
 
-	file_handle, open_ok := os.open(filename, usage, 0); 
+	file_handle, open_ok := os.open(filename, usage); 
 	defer os.close(file_handle);
 
 	if open_ok != os.ERROR_NONE do return data, false;

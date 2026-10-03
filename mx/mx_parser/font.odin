@@ -5,6 +5,7 @@ import "core:strings";
 import "core:mem";
 import "core:math";
 import "core:fmt";
+import "core:slice";
 
 import "core:image/png";
 
@@ -548,6 +549,11 @@ ParseTTF :: proc(image_data: []u8, glyph_data: []u8) -> (^png.Image, map[rune]gl
 	if err != nil do return {}, {}, {}, false;
 
 	fmt.println("HEADER: ", header);
+
+	entries, map_err := slice.map_entries(character_map);
+	for e in entries[:] {
+		fmt.println(e)
+	}
 
 	return img, character_map, header.max_height, true;
 }

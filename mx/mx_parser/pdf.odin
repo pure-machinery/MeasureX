@@ -65,12 +65,10 @@ AddDocumentCatalogue :: proc(ctx: ^pdf_context) {
 }
 
 WriteObject :: proc(builder: ^strings.Builder, obj: object) {
-	using strings;
-
-	write_int(builder, obj.id);
-	write_int(builder, 0);
-	write_string(builder, "obj << /Type");
-	defer write_string(builder, ">> endobj\n");
+	strings.write_int(builder, obj.id);
+	strings.write_int(builder, 0);
+	strings.write_string(builder, "obj << /Type");
+	defer strings.write_string(builder, ">> endobj\n");
 
 	switch obj.type {
 		case .BOOLEAN:
@@ -85,18 +83,16 @@ WriteObject :: proc(builder: ^strings.Builder, obj: object) {
 }
 
 WritePDF :: proc(ctx: ^pdf_context, allocator := context.allocator) -> string {
-	using strings; 
-
- 	builder : Builder = ---; 
-	builder_init_len_cap(&builder, 0, mem.Kilobyte, allocator);
+ 	builder : strings.Builder = ---; 
+	strings.builder_init_len_cap(&builder, 0, mem.Kilobyte, allocator);
  	//defer builder_destroy(&builder);
 
- 	write_string(&builder, fmt.tprintf("%PDF-%d.%d\n", ctx.major, ctx.minor));
- 	defer write_string(&builder, "\n%%EOF");
+ 	strings.write_string(&builder, fmt.tprintf("%PDF-%d.%d\n", ctx.major, ctx.minor));
+ 	defer strings.write_string(&builder, "\n%%EOF");
 
  	for obj, index in ctx.objects {
  		WriteObject(&builder, obj);
  	}
 
- 	return to_string(builder);
+ 	return strings.to_string(builder);
 }

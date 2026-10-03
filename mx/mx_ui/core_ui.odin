@@ -15,8 +15,6 @@ import "base:runtime";
 import "core:math";
 import "core:strings"
 
-import "../../profiler";
-
 UI : ui_context = { 
 	hot      = -1,
 	active   = -1,
@@ -431,7 +429,7 @@ UiDrawWidget :: proc(widget: ^ui_widget) {
 		if response.active do border_color = { 0.25, 0.1, 0.7, 1.0 };
 	}
 
-	mx_renderer.PushRectangle(UI.ctx, widget.rect, color, {}, border_color, border_thickness);
+	mx_renderer.PushRectangle(UI.ctx, widget.rect, color, {}, border_color, {}, border_thickness);
 	
 	when ODIN_DEBUG do mx_renderer.PushRectangleBorder(UI.ctx, widget.rect, { 1.0, 0.0, 0.0, 1.0 }, 1.0);
 

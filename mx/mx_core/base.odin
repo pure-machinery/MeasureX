@@ -7,8 +7,6 @@ import "../mx_parser"
 import "../mx_chain"
 import "../mx_ui"
 
-import "../../profiler"
-
 import "core:math"
 import "core:math/rand"
 import "core:fmt"
@@ -37,7 +35,7 @@ state_data :: struct {
 
 	signal: window_signal,
 
-	log_file: os.Handle,
+	log_file: os.File,
 
 	move_timer: timer,
 }
@@ -48,12 +46,8 @@ timer :: struct {
 }
 
 RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_context, state: ^state_data) {
-	using mx_input;
-	using mx_renderer;
-
 	if !state.is_initialised {
 		mx_ui.UiInitialize(ctx, input);
-		profiler.InitProfiler(64);
 
 		if temp_chain, ok := mx_chain.InitializeChain(); ok {
 			state.chain = temp_chain;
@@ -68,23 +62,20 @@ RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_
 		}
 	}
 
-	//profiler.BeginRecordEntry(#procedure);
-	//defer profiler.EndRecordEntry();
-
 	mx_ui.UiBegin(cast(f64) input.mouse_x, cast(f64) input.mouse_y, input.scroll, ctx.screen_width, ctx.screen_height, input.left_press, cast(f32) state.dt, state.frame);
 	defer mx_ui.UiEnd();
 
-	if KeyJustReleased(input, mx_key.KEY_Q) { 
+	if mx_input.KeyJustReleased(input, mx_input.mx_key.KEY_Q) { 
 		state.signal.should_close = true;
-		os.close(state.log_file);
+		os.close(&state.log_file);
 		return;
 	}
 	
-	if KeyJustReleased(input, mx_key.KEY_DELETE) {
+	if mx_input.KeyJustReleased(input, mx_input.mx_key.KEY_DELETE) {
 		state.selected_node = mx_chain.ChainFreeNode(&state.chain, state.selected_node);
 	}
 
-	if is, _ := KeyIsDown(input, mx_key.KEY_LSHIFT); is && KeyJustReleased(input, mx_key.KEY_A) {
+	if is, _ := mx_input.KeyIsDown(input, mx_input.mx_key.KEY_LSHIFT); is && mx_input.KeyJustReleased(input, mx_input.mx_key.KEY_A) {
 		state.selected_node = mx_chain.ChainInsertNode(&state.chain, state.selected_node);
 		added = true;
 		fmt.println("ADDED:")
@@ -93,25 +84,29 @@ RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_
 	//if state.selected_node != nil do EditDimension(state, input);
 	/*
 	{
-		using mx_ui;
      	sty := default_style;
      	sty.background_color_hover = { 1.0, 0.0, 0.0, 1.0 };
-     	sty.text_size_default = 20.0;
+     	//sty.border_thickness = 1.0;
+     	//sty.border_color = { 255.0, 0, 0, 1.0 };
+     	sty.text_size_default = 24.0;
      	UiSetStyle(sty);
 
-		temp_layout := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_SCALE } , { 1.0, 0.500 }, .X_AXIS);
-
+		temp_layout := UiLayout(UI.screen, { .SIZE_BY_PIXELS, .SIZE_BY_SCALE } , { 100, 1.0 }, .Y_AXIS);
+		/*
 		for idx := 0; idx < 3; idx += 1 {
-			//sty.text_size_default = cast(f32) (idx + 1) * 10.0;
-			//UiSetStyle(sty);
-
-			//UiButton(temp_layout, "Placeholder");
-			//UiLabel(temp_layout, "Labelholder");
-		} 
-			UiLabel(temp_layout, "Labelholder");
-			UiButton(temp_layout, "Hello");
 			UiButton(temp_layout, "Placeholder");
 			UiLabel(temp_layout, "Labelholder");
+		} 
+		*/
+
+		UiLabel(temp_layout, "Label1");
+
+		if widget := UiButton(temp_layout, "Press Me 1"); UiGetWidgetResponse(widget).single_clicked {
+			fmt.println("Pressed ", widget.text);
+		}
+
+		UiButton(temp_layout, "Press Me 2");
+		UiLabel(temp_layout, "Labelholder");
 		/*
 		new_layout := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_SCALE }, { 1.0, 0.500 }, .CENTER);
 
@@ -125,15 +120,17 @@ RunApplication :: proc(input: ^mx_input.input_state, ctx: ^mx_renderer.graphics_
 	}
 	*/
 	//PrintTable();
-
+	
+	
 	UiHeaderBar(input, &state.signal, &state.chain, state.dt, state.desired_dt);
 	UiToleranceWidget(&state.chain, state.selected_node, state.elapsed);
-
+	
 	mx_ui.UiMakeLayout();
 	mx_ui.UiFlushWidgets();
+	
 
-	ClearBackgroundColor(0.25, 0.25, 0.25, 1.0);
-	DrawUI(ctx, .RECTANGLE);
+	mx_renderer.ClearBackgroundColor(0.25, 0.25, 0.25, 1.0);
+	mx_renderer.DrawUI(ctx, mx_renderer.render_group_kind.RECTANGLE);
 
 	//if added do assert(0 == 1);
 }
@@ -154,17 +151,14 @@ window_signal :: struct {
 }
 
 UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain: ^mx_chain.dimension_chain, dt: f64, desired_dt: f64) {
-	using mx_ui; 
-	using time;
-
-	title_bar := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS } , { 1.0, 36.0 }, .X_AXIS);
+	title_bar := mx_ui.UiLayout(mx_ui.UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS } , { 1.0, 36.0 }, .X_AXIS);
 	title_bar.text = "title_bar";
 
-	UiSeparator(title_bar, 2.0);
+	mx_ui.UiSeparator(title_bar, 2.0);
 
-	export := UiButton(title_bar, fmt.tprintf("%c##export_pdf", rune(mx_renderer.ICON_FILE_PDF)));
+	export := mx_ui.UiButton(title_bar, fmt.tprintf("%c##export_pdf", rune(mx_renderer.ICON_FILE_PDF)));
 	
-	if response := UiGetWidgetResponse(export); response.single_clicked {
+	if response := mx_ui.UiGetWidgetResponse(export); response.single_clicked {
 		// Perhaps create a text input widget for the file path?
 		now := time.now();
 		hour, min, sec := time.clock_from_time(now);
@@ -178,29 +172,29 @@ UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain:
 		// Do the exporting.
 	}
 
-	UiSeparator(title_bar, 2.0);
+	mx_ui.UiSeparator(title_bar, 2.0);
 
-	radio_button := UiRadioButton(title_bar, "ISO2862:", { "F", "M", "C", "V" }, cast(^int) &chain.designation);
+	radio_button := mx_ui.UiRadioButton(title_bar, "ISO2862:", { "F", "M", "C", "V" }, cast(^int) &chain.designation);
 
-	expander := UiLayout(title_bar, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE }, { 0.0, 1.0 }, {});
+	expander := mx_ui.UiLayout(title_bar, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE }, { 0.0, 1.0 }, {});
 
 	//UiLabel(title_bar, fmt.tprintf("%.6f %.6f ", dt, desired_dt));
 	
-	UiSeparator(title_bar, 2.0);
+	mx_ui.UiSeparator(title_bar, 2.0);
 
-	fullscreen := UiButton(title_bar, fmt.tprintf("%c##fullscreen", rune(mx_renderer.ICON_FULLSCREEN)));
+	fullscreen := mx_ui.UiButton(title_bar, fmt.tprintf("%c##fullscreen", rune(mx_renderer.ICON_FULLSCREEN)));
 	
-	UiSeparator(title_bar, 2.0);
+	mx_ui.UiSeparator(title_bar, 2.0);
 
-	close_button := UiButton(title_bar, fmt.tprintf("%c##close", rune(mx_renderer.ICON_CLOSE)));
+	close_button := mx_ui.UiButton(title_bar, fmt.tprintf("%c##close", rune(mx_renderer.ICON_CLOSE)));
 
-	UiSeparator(title_bar, 2.0);
+	mx_ui.UiSeparator(title_bar, 2.0);
 
-	if response := UiGetWidgetResponse(close_button); response.single_clicked {
+	if response := mx_ui.UiGetWidgetResponse(close_button); response.single_clicked {
 		signal.should_close = true; 
 	}
 
-	if response := UiGetWidgetResponse(fullscreen); response.single_clicked {
+	if response := mx_ui.UiGetWidgetResponse(fullscreen); response.single_clicked {
 		signal.should_fullscreen = !signal.should_fullscreen;
 	}
 	/*
@@ -214,19 +208,16 @@ UiHeaderBar :: proc(input: ^mx_input.input_state, signal: ^window_signal, chain:
 
 UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.dimension_node, elapsed: f64) 
 {
-	using mx_ui;
-	using mx_chain;
-
-	panel := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 30.0 } , .X_AXIS);
+	panel := mx_ui.UiLayout(mx_ui.UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 30.0 } , .X_AXIS);
 	
 	// UiLayoutScaled(1 / 6.0);
 	list_scale : f32 = 1 / 6.0; 
-	UiLabelScaled(panel, list_scale, "Standard");
-	UiLabelScaled(panel, list_scale, "Nominal");
-	UiLabelScaled(panel, list_scale, "Field");
-	UiLabelScaled(panel, list_scale, "Grade");
-	UiLabelScaled(panel, list_scale, "Lower");
-	UiLabelScaled(panel, list_scale, "Upper");
+	mx_ui.UiLabelScaled(panel, list_scale, "Standard");
+	mx_ui.UiLabelScaled(panel, list_scale, "Nominal");
+	mx_ui.UiLabelScaled(panel, list_scale, "Field");
+	mx_ui.UiLabelScaled(panel, list_scale, "Grade");
+	mx_ui.UiLabelScaled(panel, list_scale, "Lower");
+	mx_ui.UiLabelScaled(panel, list_scale, "Upper");
 	
 	//UiSeparator(UI.screen, 8.0);
 	
@@ -236,26 +227,28 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 
 		//list_x, list_y := UiRectGetDimensions(scroller_layout.rect);
 
-		list := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_EXPAND }, { 1.0, 1.0 }, .Y_AXIS);
+		list := mx_ui.UiLayout(mx_ui.UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_EXPAND }, { 1.0, 1.0 }, .Y_AXIS);
 
 		for node := chain.head; node != nil; node = node.next {
-			spanner := UiLayout(list, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 30.0 } , .X_AXIS);
+			spanner := mx_ui.UiLayout(list, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 30.0 } , .X_AXIS);
 
-			state_slider := UiSliderEnumScaled(spanner, list_scale, &node.state);
-			nominal_input := UiTextEditScaled(spanner, list_scale, fmt.tprintf("%f##nominal_%x", node.nominal_value, node));
-
+			state_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.state);
+			nominal_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%f##nominal_%x", node.nominal_value, node));
+			field_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.field);
+			grade_slider := mx_ui.UiSliderEnumScaled(spanner, list_scale, &node.grade);
+			
 			if node.state == .ISO286 {
-				field_slider := UiSliderEnumScaled(spanner, list_scale, &node.field);
-				grade_slider := UiSliderEnumScaled(spanner, list_scale, &node.grade);
+				//field_slider := UiSliderEnumScaled(spanner, list_scale, &node.field);
+				//grade_slider := UiSliderEnumScaled(spanner, list_scale, &node.grade);
 			} else {
-				UiLayout(spanner, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE}, { 1.0, 1.0 }, {});
+				mx_ui.UiLayout(spanner, { .SIZE_BY_EXPAND, .SIZE_BY_SCALE}, { 1.0, 1.0 }, {});
 			}
 
-			lower_input := UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##lower_%x", node.lower_tolerance, node));
-			upper_input := UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##upper_%x", node.upper_tolerance, node));
+			lower_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##lower_%x", node.lower_tolerance, node));
+			upper_input := mx_ui.UiTextEditScaled(spanner, list_scale, fmt.tprintf("%.3f##upper_%x", node.upper_tolerance, node));
 
 
-			node.nominal_value = strconv.atof(nominal_input.text);
+			node.nominal_value, _ = strconv.parse_f64(nominal_input.text);
 			// TODO: Change widget style setting. Eg. that i can set per widget.
 			switch node.state {
 				case .ISO286:
@@ -267,8 +260,8 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 
 					//style.text_color_default = [4]f32 { 0.639, 0.639, 0.639, 1.0 };
 				case .None:
-					node.lower_tolerance = strconv.atof(lower_input.text);
-					node.upper_tolerance = strconv.atof(upper_input.text);
+					node.lower_tolerance, _ = strconv.parse_f64(lower_input.text);
+					node.upper_tolerance, _ = strconv.parse_f64(upper_input.text);
 
 					if node.upper_tolerance < node.lower_tolerance {
 						//red := 1.0 * cast(f32) abs(math.sin(2.0 * elapsed));
@@ -276,10 +269,10 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 					}
 			}
 
-			UiSeparator(list, 5.0);
+			mx_ui.UiSeparator(list, 5.0);
 		}
 	
-		UiSeparator(UI.screen, 6.0);
+		mx_ui.UiSeparator(mx_ui.UI.screen, 6.0);
 
 	}
 	
@@ -295,35 +288,33 @@ UiToleranceWidget :: proc(chain: ^mx_chain.dimension_chain, selected: ^mx_chain.
 
 		end_dim := mx_chain.CalculateEndDimension(chain^);
 		
-		result_layout := UiLayout(UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 60.0 } , .X_AXIS);
+		result_layout := mx_ui.UiLayout(mx_ui.UI.screen, { .SIZE_BY_SCALE, .SIZE_BY_PIXELS }, { 1.0, 60.0 } , .X_AXIS);
 		//result_layout.draw_flags += { .DRAW_BORDER };
 
-		UiSetStyle(style);
-		defer UiResetStyle();		
+		mx_ui.UiSetStyle(style);
+		defer mx_ui.UiResetStyle();		
 		
-		lhs_layout := UiLayout(result_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 0.5, 1.0 }, .X_AXIS);
-		rhs_layout := UiLayout(result_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 0.5, 1.0 }, .Y_AXIS);
-		u_parent :=	UiLayout(rhs_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 1.0, 0.5 }, .X_AXIS);
-		l_parent := UiLayout(rhs_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 1.0, 0.5 }, .X_AXIS);
+		lhs_layout := mx_ui.UiLayout(result_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 0.5, 1.0 }, .X_AXIS);
+		rhs_layout := mx_ui.UiLayout(result_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 0.5, 1.0 }, .Y_AXIS);
+		u_parent :=	mx_ui.UiLayout(rhs_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 1.0, 0.5 }, .X_AXIS);
+		l_parent := mx_ui.UiLayout(rhs_layout, { .SIZE_BY_SCALE, .SIZE_BY_SCALE}, { 1.0, 0.5 }, .X_AXIS);
 
-		n := UiLabelScaled(lhs_layout, 1.0, fmt.tprintf("%f##end_nominal",end_dim.nominal_value));
-		l := UiLabelScaled(l_parent, 1.0, fmt.tprintf("%f##end_lower",end_dim.lower_tolerance));
-		u := UiLabelScaled(u_parent, 1.0, fmt.tprintf("%f##end_upper",end_dim.upper_tolerance));
+		n := mx_ui.UiLabelScaled(lhs_layout, 1.0, fmt.tprintf("%f##end_nominal",end_dim.nominal_value));
+		l := mx_ui.UiLabelScaled(l_parent, 1.0, fmt.tprintf("%f##end_lower",end_dim.lower_tolerance));
+		u := mx_ui.UiLabelScaled(u_parent, 1.0, fmt.tprintf("%f##end_upper",end_dim.upper_tolerance));
 	}
 	
 }
 
 
 PrintTable :: proc() {
-	using mx_ui; 
-
-	stack := make_dynamic_array_len_cap([dynamic]^ui_widget, 0, cap(UI.widgets), context.temp_allocator);
+	stack := make_dynamic_array_len_cap([dynamic]^mx_ui.ui_widget, 0, cap(mx_ui.UI.widgets), context.temp_allocator);
 	defer delete(stack);
 
-	append(&stack, UI.screen);
+	append(&stack, mx_ui.UI.screen);
 
 	depth := 0; 
-	last_parent := UI.screen;
+	last_parent := mx_ui.UI.screen;
 
 	level := 0;
 	for node, ok := pop_safe(&stack); node != nil && ok; node, ok = pop_safe(&stack) {
@@ -337,21 +328,10 @@ PrintTable :: proc() {
 	}	
 }
 
-
-CreateLogFile :: proc(state: ^state_data) {
-	if file, ok := os.open("performance.txt", os.O_CREATE | os.O_WRONLY | os.O_TRUNC, os.S_IRWXU); ok == os.ERROR_NONE {
-		state.log_file = file;
-	}
-}
-
-
 // TODO(G): Add basic PDF parsing.
+/*
 ExportToPDF :: proc(filename: string, chain: ^mx_chain.dimension_chain) -> bool {
-	using strings;
-	using mx_parser;
-
-
-	fd, err := os.open(filename, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, os.S_IRWXU);
+	fd, err := os.open(filename, { .Create, .Write, .Trunc }, { .Read_User, .Write_User });
 	defer os.close(fd);
 
  	if err != os.ERROR_NONE {
@@ -429,3 +409,4 @@ ExportToPDF :: proc(filename: string, chain: ^mx_chain.dimension_chain) -> bool 
 
 	return true;
 }
+*/

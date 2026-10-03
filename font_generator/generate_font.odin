@@ -29,10 +29,7 @@ glyph :: struct {
 }
 
 
-main :: proc() {
-	using tty;
-	using img;
-	
+main :: proc() {	
 	context.allocator = context.temp_allocator;
 
 	// Append the textures in use.
@@ -43,19 +40,19 @@ main :: proc() {
 	icon_characters := []rune { 0xe800, 0xe801, 0xe802, 0xe803 , 0xe804 };
 	
 	
-	text_fontinfo := fontinfo {};
-	icon_fontinfo := fontinfo {};
+	text_fontinfo := tty.fontinfo {};
+	icon_fontinfo := tty.fontinfo {};
 
-	pack_ctx := pack_context {};
+	pack_ctx := tty.pack_context {};
 
-	if result := InitFont(&text_fontinfo, raw_data(text), 0); result == false {
+	if result := tty.InitFont(&text_fontinfo, raw_data(text), 0); result == false {
 		fmt.println("Failed to initialize text font.", result);
 		return; 
 	}
 
 	when ODIN_DEBUG do fmt.println("Text font: ", text_fontinfo);
 
-	if result := InitFont(&icon_fontinfo, raw_data(icons), 0); result == false {
+	if result := tty.InitFont(&icon_fontinfo, raw_data(icons), 0); result == false {
 		fmt.println("Failed to initialize icons font.");
 		return;
 	}
@@ -72,7 +69,7 @@ main :: proc() {
 
 	SCALE : f32 : 48.0;
 
-	GetFontVMetrics(&text_fontinfo, &ascent, &descent, &line_gap);
+	tty.GetFontVMetrics(&text_fontinfo, &ascent, &descent, &line_gap);
 	//scale := ScaleForPixelHeight(&text_fontinfo, SCALE);
 	scale := SCALE;
 	STRIDE_IN_BYTES :: 4
@@ -81,12 +78,12 @@ main :: proc() {
 	// Image buffer.
 	pixels := make([]u8, img_width * img_height, context.temp_allocator);
 
-	result := PackBegin(&pack_ctx, raw_data(pixels), img_width, img_height, 0, 1, nil); 
-	defer PackEnd(&pack_ctx);
+	result := tty.PackBegin(&pack_ctx, raw_data(pixels), img_width, img_height, 0, 1, nil); 
+	defer tty.PackEnd(&pack_ctx);
 
-	assert(result == 1, "Failed to begin pack.")
+	assert(result == true, "Failed to begin pack.")
 
-	PackSetSkipMissingCodepoints(&pack_ctx, true);
+	tty.PackSetSkipMissingCodepoints(&pack_ctx, true);
 //	PackSetOversampling(&pack_ctx, 2, 2);
 
 	when ODIN_DEBUG do fmt.println(pack_ctx);
@@ -94,18 +91,18 @@ main :: proc() {
 	first_ascii : i32 = 33;
 	last_ascii : i32 = 126; 
 
-	packed_text := make([]packedchar, last_ascii - first_ascii, context.temp_allocator);
+	packed_text := make([]tty.packedchar, last_ascii - first_ascii, context.temp_allocator);
 
-	if result := PackFontRange(&pack_ctx, raw_data(text), 0, scale, first_ascii, last_ascii - first_ascii, &packed_text[0]); result == 0 {
+	if result := tty.PackFontRange(&pack_ctx, raw_data(text), 0, scale, first_ascii, last_ascii - first_ascii, &packed_text[0]); result == false {
 		fmt.println("Failed to pack text font range.", result);
 		return;
 	}
 
-	packed_icons := make([]packedchar, len(icon_characters), context.temp_allocator);
-	GetFontVMetrics(&icon_fontinfo, &ascent, &descent, &line_gap);
+	packed_icons := make([]tty.packedchar, len(icon_characters), context.temp_allocator);
+	tty.GetFontVMetrics(&icon_fontinfo, &ascent, &descent, &line_gap);
 	//scale = ScaleForPixelHeight(&icon_fontinfo, SCALE);
 
-	if result := PackFontRange(&pack_ctx, raw_data(icons), 0, scale, cast(i32) icon_characters[0], cast(i32) len(icon_characters), &packed_icons[0]); result == 0 {
+	if result := tty.PackFontRange(&pack_ctx, raw_data(icons), 0, scale, cast(i32) icon_characters[0], cast(i32) len(icon_characters), &packed_icons[0]); result == false {
 		fmt.println("Failed to pack icon font range.", result);
 		return;
 	}
@@ -117,13 +114,13 @@ main :: proc() {
 	// White pixel.
 	pixels[0] = 0xFF;
 
-	if result := write_png("asset.png", img_width, img_height, CHANNELS, raw_data(pixels), 0); result == 0 {
+	if result := img.write_png("asset.png", img_width, img_height, CHANNELS, raw_data(pixels), 0); result == 0 {
 		fmt.println("Failed to write the png.");
 		return;
 	}
 
 
-	fd, err := os.open("asset", os.O_CREATE | os.O_WRONLY | os.O_TRUNC, os.S_IRWXU);
+	fd, err := os.open("asset", os.O_CREATE | os.O_WRONLY | os.O_TRUNC);
 
  	if err != os.ERROR_NONE {
  		fmt.println("Failed to create file.", err);
